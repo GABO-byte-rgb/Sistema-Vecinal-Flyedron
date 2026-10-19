@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Reglas para la colección 'usuarios' (Registro y autenticación de vecinos de Castilla)
+    match /usuarios/{usuarioId} {
+      // Permitir creación durante registro y lectura para validación de login/vecinos
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['nombres', 'apellidos', 'correo', 'documento'])
+                    && request.resource.data.correo is string
+                    && request.resource.data.documento is string;
+      allow update, delete: if isAuthenticated() || (request.resource.data.documento == resource.data.documento);
+    }
+
+    // Reglas para reportes de incidentes comunitarios y despacho de drones
+    match /incidentes/{incidenteId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['tipo', 'ubicacion'])
+                    && request.resource.data.tipo is string;
+      allow update, delete: if isAuthenticated();
+    }
+
+    // Reglas para alertas sectoriales y notificaciones comunitarias
+    match /alertas/{alertaId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Reglas para estado de drones, patrullajes y telemetría de vigilancia (ESP32-CAM)
+    match /drones/{droneId} {
+      allow read: if true;
+      allow write: if true; // Permite a la ESP32 reportar su IP dinámica y telemetría
+    }
+
+    // Reglas para publicaciones vecinales y comunidad
+    match /comunidad/{postId} {
+      allow read: if true;
+      allow create: if request.resource.data.mensaje is string;
+      allow update, delete: if isAuthenticated();
+    }
+
+    // Regla de respaldo
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 12, 31);
+    }
+  }
+}
